@@ -1,2 +1,0 @@
-Fabricator(:ball) do
-end

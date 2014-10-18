@@ -42,8 +42,8 @@ class EventCounter < ActiveRecord::Base
         rotate_counter(*args, opts)
       end
 
-      def data_for(name, interval: nil, range: nil, raw: false)
-        self.class.data_for(name, id, interval: interval, range: range, raw: raw)
+      def data_for(name, opts = {})
+        self.class.data_for(name, id, opts)
       end
 
       private
@@ -68,99 +68,113 @@ class EventCounter < ActiveRecord::Base
         day: 1.day
       }.freeze
 
-      def data_for(counter_name, id = nil, interval: nil, range: nil, raw: false)
-        interval = normalize_interval!(counter_name, interval)
+      def data_for(name, id = nil, interval: nil, range: nil, raw: nil, tz: nil)
+        interval = normalize_interval!(name, interval)
 
-        sql = <<SQL.squish!
-#{cte_definition(counter_name, interval, id)}
-SELECT
-  created_at,
-  COALESCE(sum(value) OVER (PARTITION BY counters.created_at) , 0) AS value
-FROM (#{series_definition(interval, range)}) intervals
-LEFT JOIN CTE counters USING (created_at)
-ORDER BY 1
-SQL
+        range = normalize_range!(range, interval) if range
+
+        tz ||= (Time.zone || 'UTC')
+        tz_abbr = tz.now.zone
+
+        subq = EventCounter
+          .select(subq_select(interval, tz_abbr))
+          .where(name: name, countable_type: self)
+          .where(id && { countable_id: id })
+          .within(range)
+          .group("1")
+          .order("1")
+          .to_sql
+
+        sql = <<-SQL.squish!
+          SELECT created_at, value
+          FROM (#{series(interval, range, tz_abbr)}) intervals
+          LEFT OUTER JOIN (#{subq}) counters USING (created_at)
+          ORDER BY 1
+        SQL
 
         result = connection.execute(sql).to_a
 
-        raw ? result : normalize_counters_data(result)
+        raw ? result : normalize_counters_data(result, tz)
       end
 
-      def cte_definition(counter_name, interval, id = nil)
-<<SQL
-WITH CTE AS (
-  SELECT #{cte_extract(interval)} as created_at, sum(value) AS value
-  FROM event_counters
-  WHERE
-    countable_type = #{sanitize(name)} AND
-    #{ "countable_id = #{sanitize(id)} AND" if id.present? }
-    name = #{sanitize(counter_name)}
-  GROUP BY 1
-)
-SQL
+      def subq_select(interval, tz)
+        "#{subq_extract(interval, tz)} as created_at, sum(value) AS value"
       end
 
-      def cte_extract(interval)
+      def subq_extract(interval, tz)
         case interval
         when Symbol
-          "date_trunc(#{sanitize(interval)}, created_at)"
+          "date_trunc(#{sanitize(interval)}, #{tstamp_tz('created_at', tz)})"
         else
-          tstamp(<<SQL)
-floor(EXTRACT(EPOCH FROM created_at::timestamp with time zone) /
-#{sanitize(interval)})::int * #{sanitize(interval)}
-SQL
+          time = <<-SQL
+            floor(EXTRACT(EPOCH FROM created_at) /
+            #{sanitize(interval)})::int * #{sanitize(interval)}
+          SQL
+          tstamp_tz("to_timestamp(#{time})", tz)
         end
       end
 
-      def series_definition(interval, range)
-        range_min, range_max = min_and_max_of_range(interval, range)
-
-        args =
+      def series(interval, range, tz)
+        a =
           case interval
           when Symbol
-            interval_sql = "interval '1 #{interval}'"
-            if range
-              [
-                "date_trunc(#{sanitize(interval)}, #{tstamp(range.min.to_i)} )",
-                "date_trunc(#{sanitize(interval)}, #{tstamp(range.max.to_i)} )",
-                interval_sql
-              ]
-            else
-              [
-                "date_trunc(#{sanitize(interval)}, min(created_at))",
-                "date_trunc(#{sanitize(interval)}, max(created_at))",
-                interval_sql
-              ]
-            end
+            series_for_symbol(interval, range, tz)
           else
-            interval_sql = %Q(#{sanitize(interval)} * interval '1 seconds')
-            if range
-              [
-                tstamp(sanitize(range_min)),
-                tstamp(sanitize(range_max)),
-                interval_sql
-              ]
-            else
-              [ 'min(created_at)', 'max(created_at)', interval_sql ]
-            end
+            series_for_integer(interval, range, tz)
           end
-        <<SQL
-SELECT
-  count(*), generate_series(#{args[0]}, #{args[1] }, #{args[2]}) AS created_at
-FROM CTE
-SQL
+        EventCounter.within(range).select(<<-SQL).to_sql
+          count(*), generate_series(#{a[0]}, #{a[1] }, #{a[2]}) AS created_at
+        SQL
       end
 
-      def tstamp(val)
-        "to_timestamp(#{val})"
+      def series_for_symbol(interval, range, tz)
+        interval_sql = "interval '1 #{interval}'"
+        if range
+          a = [
+            dtrunc(interval, sanitize(range.min).to_s, tz),
+            dtrunc(interval, sanitize(range.max).to_s, tz),
+            interval_sql
+          ]
+        else
+          a = [
+            dtrunc(interval, 'min(created_at)', tz),
+            dtrunc(interval, 'max(created_at)', tz),
+            interval_sql
+          ]
+        end
+      end
+
+      def series_for_integer(interval, range, tz)
+        interval_sql = %Q(#{sanitize(interval)} * interval '1 seconds')
+        if range
+          a = [
+            tstamp_tz("to_timestamp(#{sanitize(range.min.to_i)})", tz),
+            tstamp_tz("to_timestamp(#{sanitize(range.max.to_i)})", tz),
+            interval_sql
+          ]
+        else
+          a = [
+            tstamp_tz('min(created_at)', tz),
+            tstamp_tz('max(created_at)', tz),
+            interval_sql
+          ]
+        end
+      end
+
+      def dtrunc(interval, value, tz)
+        "date_trunc(#{sanitize(interval)}, #{tstamp_tz(value, tz)})"
+      end
+
+      def tstamp_tz(str, tz)
+        "#{str}::timestamptz AT TIME ZONE #{sanitize(tz)}"
       end
 
       def counter_error!(*args)
         fail EventCounter::CounterError, args
       end
 
-      def normalize_interval!(counter_name, interval)
-        default_interval = default_interval_for(counter_name)
+      def normalize_interval!(name, interval)
+        default_interval = default_interval_for(name)
 
         h = {
           default_interval: default_interval,
@@ -195,28 +209,30 @@ SQL
         interval.is_a?(Symbol) ? INTERVALS[interval] : interval
       end
 
-      def normalize_counters_data(raw_data)
-        raw_data.map  do |i|
-          [ Time.parse(i['created_at']), i['value'].to_i ]
+      def normalize_counters_data(data, tz)
+        Time.use_zone(tz) do
+          data.map { |i| [ Time.zone.parse(i['created_at']), i['value'].to_i ] }
         end
       end
 
-      def default_interval_for(counter_name)
-        event_counters[counter_name.to_sym]
+      def default_interval_for(name)
+        event_counters[name.to_sym]
       end
 
-      def min_and_max_of_range(interval, range)
-        return unless range
+      def normalize_range!(range, interval)
+        range_min, range_max =
+          case interval
+          when Symbol
+            [
+              range.min.send(:"beginning_of_#{interval}"),
+              range.max.send(:"end_of_#{interval}")
+            ]
+          else
+            [ range.min.floor(interval), range.max.floor(interval) ]
+          end
 
-        case interval
-        when Symbol
-          [
-            range.min.send(:"beginning_of_#{interval}").to_i,
-            range.max.send(:"end_of_#{interval}").to_i
-          ]
-        else
-          [ range.min.floor(interval).to_i, range.max.floor(interval).to_i ]
-        end
+        # TODO: ensure that range in time zone
+        range_min..range_max
       end
     end
   end

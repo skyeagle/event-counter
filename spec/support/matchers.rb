@@ -11,10 +11,12 @@ RSpec::Matchers.define :be_eql do |expected|
   diffable
 end
 
-RSpec::Matchers.define :eql_data do |expected|
-  match do |actual|
-    expected.map! { |a, b| [ Time.mktime(2012, 12, 12, 12, a), b ] }
-    expect(actual).to eql(expected)
+module RSpec
+  module Matchers
+    def eql_data(items)
+      items.map! { |a, b| [ Time.mktime(2014, 1, 1, 1, a).in_time_zone, b ] }
+      contain_exactly(*items)
+    end
   end
 end
 

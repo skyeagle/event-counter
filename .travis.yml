@@ -1,0 +1,19 @@
+language: ruby
+rvm:
+  - 1.9.3
+  - 2.0.0
+  - 2.1.0
+
+gemfile:
+  - gemfiles/pg_ar_30.gemfile
+  - gemfiles/pg_ar_31.gemfile
+  - gemfiles/pg_ar_32.gemfile
+  - gemfiles/pg_ar_40.gemfile
+
+script: RUN_ALL=true rspec spec
+
+services:
+  - postgresql
+
+before_script:
+  - psql -c 'create database event_counter_test;' -U postgres

@@ -3,7 +3,6 @@ require 'bundler/setup'
 
 require 'active_record'
 require 'database_cleaner'
-require 'fabrication'
 require 'logger'
 require 'event_counter'
 
@@ -20,10 +19,11 @@ YAML.load(File.open(conf).read).values.each do |config|
   ActiveRecord::Base.establish_connection config
 end
 
+ActiveRecord::Base.default_timezone = :utc
+Time.zone = 'Moscow'
+
 ActiveRecord::Schema.define do
   self.verbose = false
-
-  create_table :cubes, force: true
 
   create_table :balls, force: true
 
@@ -35,9 +35,9 @@ ActiveRecord::Schema.define do
     t.datetime :created_at
   end
 
-  add_index :event_counters, :countable_type
-  add_index :event_counters, [:countable_type, :name, :countable_id, :created_at],
-    name: 'composite'
+  add_index :event_counters, :created_at#, name: 'idx_created_at_desc'
+  add_index :event_counters, [:countable_type, :name, :countable_id],
+    name: 'idx_composite'
 end
 
 # :nodoc:
@@ -54,18 +54,15 @@ Dir[File.expand_path('../support/*.rb', __FILE__)].each do |file|
 end
 
 RSpec.configure do |config|
+
   config.before(:suite) do
     DatabaseCleaner.strategy = :transaction
     DatabaseCleaner.clean_with(:truncation)
   end
 
-  config.before(:each) do
-    DatabaseCleaner.start
+  config.around(:each) do |example|
+    DatabaseCleaner.cleaning { example.run }
   end
 
-  config.after(:each) do
-    DatabaseCleaner.clean
-  end
-
-  config.filter_run_excluding performance: true
+  config.filter_run_excluding slow: true unless ENV['RUN_ALL']
 end

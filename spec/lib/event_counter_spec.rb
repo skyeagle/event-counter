@@ -1,7 +1,7 @@
 require 'spec_helper'
 
 describe EventCounter do
-  let(:ball) { Fabricate(:ball) }
+  let(:ball) { Ball.create! }
 
   it 'has version' do
     expect(EventCounter::VERSION).to match(/\d+\.\d+\.\d+/)
@@ -15,7 +15,7 @@ describe EventCounter do
       expected = {
         countable_id: ball.id,
         countable_type: ball.class.name,
-        created_at: Time.now.floor(300),
+        created_at: Time.zone.now.floor(300),
         name: 'rotations',
         value: 3
       }.with_indifferent_access
@@ -27,7 +27,7 @@ describe EventCounter do
   end
 
   it '#make on time' do
-    on_time = Time.mktime(2012, 12, 12, 12, 12)
+    on_time = Time.mktime(2014, 1, 1, 1, 14).in_time_zone
     expect {
       counter = ball.rotations.make(
         3, on_time: on_time)
@@ -48,7 +48,7 @@ describe EventCounter do
   end
 
   it '#make on time with interval as symbol' do
-    on_time = Time.mktime(2012, 12, 12, 12, 12)
+    on_time = Time.mktime(2014, 1, 1, 1, 1).in_time_zone
     [:week, :month, :year].each do |interval|
       expect {
         counter = ball.send(:"rotations_by_#{interval}").make(
@@ -73,7 +73,7 @@ describe EventCounter do
 end
 
 describe Ball do
-  let(:ball) { Fabricate(:ball) }
+  let(:ball) { Ball.create! }
 
   it 'creates a new counter while incrementing' do
     expect {
@@ -230,12 +230,12 @@ describe Ball do
 
   def setup_counters(countable_count = 1)
     [1, 1, 2, 3, 5, 8, 13, 21, 34].each do |n|
-      on_time = Time.mktime(2012, 12, 12, 12, n)
+      on_time = Time.mktime(2014, 1, 1, 1, n).in_time_zone
       if countable_count == 1
         ball.rotations.make n, on_time: on_time
       else
         countable_count.times do
-          Fabricate(:ball).rotations.make n, on_time: on_time
+          Ball.create!.rotations.make n, on_time: on_time
         end
       end
     end
@@ -282,9 +282,9 @@ describe Ball do
     end
 
     it 'with a greater interval and a time range' do
-      range_start = Time.mktime 2012, 12, 12, 12, 15
-      range_end =   Time.mktime 2012, 12, 12, 12, 45
-      range = range_start..range_end
+      range_start = Time.mktime 2014, 1, 1, 1, 15
+      range_end =   Time.mktime 2014, 1, 1, 1, 45
+      range = range_start.in_time_zone..range_end.in_time_zone
 
       data = [ [ 10, 13 ], [ 20, 21 ], [ 30, 34 ], [ 40, 0] ]
 
@@ -293,7 +293,7 @@ describe Ball do
     end
 
     it 'with a greater interval as symbol' do
-      beginning_of_week = Time.mktime(2012, 12, 12).beginning_of_week
+      beginning_of_week = Time.mktime(2014).in_time_zone.beginning_of_week
 
       data = [ [ beginning_of_week, 88 ] ]
 
@@ -305,29 +305,64 @@ describe Ball do
 
   context '.data_for' do
 
+    subject { Ball }
+
     before { setup_counters(3) }
 
     it 'with a default interval' do
       data = [
         # [ minute, value ]
-        [ 0, 21   ],
-        [ 5, 39  ],
+        [ 0, 21 ],
+        [ 5, 39 ],
         [ 10, 39 ],
-        [ 15, 0  ],
+        [ 15, 0 ],
         [ 20, 63 ],
-        [ 25, 0  ],
+        [ 25, 0 ],
         [ 30, 102 ]
       ]
       expect(subject.data_for(:rotations)).to eql_data(data)
     end
 
-    it 'with a greater interval as symbol and a simple data' do
-      beginning_of_month = Time.mktime(2012, 12, 12).beginning_of_month
-      data = [ [ beginning_of_month, 264 ] ]
-      expect(subject.data_for(:rotations, interval: :month)).to eql(data)
+    it 'with a greater interval' do
+      data = [ [ 0, 60 ], [ 10, 39 ], [ 20, 63 ], [ 30, 102 ] ]
+
+      expect(subject.data_for(:rotations, interval: 10.minutes))
+        .to eql_data(data)
     end
 
-    it 'with a greater interval as symbol and a large data' do
+    it 'with a greater interval within range' do
+      data = [ [ 10, 39 ], [ 20, 63 ] ]
+
+      range_start = Time.mktime(2014, 1, 1, 1, 15).in_time_zone
+      range_end = Time.mktime(2014, 1, 1, 1, 29).in_time_zone
+      range = range_start..range_end
+
+      expect(subject.data_for(:rotations, interval: 10.minutes, range: range))
+        .to eql_data(data)
+    end
+
+    it 'with a greater interval as symbol and a simple data' do
+      bmonth = Time.mktime(2014, 1, 1).in_time_zone.beginning_of_month
+      data = [ [ bmonth, 264 ] ]
+
+      expect(subject.data_for(:rotations, interval: :month))
+        .to match_array(data)
+    end
+
+    it 'with a greater interval as symbol and a simple data within range' do
+      bmonth = Time.mktime(2014, 1, 1).in_time_zone.beginning_of_month
+      data = [ [ bmonth, 264 ] ]
+
+      range_start = bmonth
+      range_end = bmonth.end_of_month
+      range = range_start..range_end
+
+      expect(subject.data_for(:rotations, interval: :month, range: range))
+        .to match_array(data)
+    end
+
+
+    it 'with a greater interval as symbol on large data set within range' do
       EventCounter.all.each do |counter|
         11.times do |x|
           created_at = counter.created_at - (x + 1).months
@@ -337,9 +372,14 @@ describe Ball do
         end
       end
 
-      data = (1..12).map { |x| [ Time.mktime(2012, x), 264 ] }
+      data = (6..12).map { |x| [ Time.mktime(2013, x).in_time_zone, 264 ] }
 
-      expect(subject.data_for(:rotations, interval: :month)).to eql(data)
+      range_start = data[0][0].beginning_of_month
+      range_end = data[-1][0].end_of_month
+      range = range_start..range_end
+
+      expect(subject.data_for(:rotations, interval: :month, range: range))
+        .to match_array(data)
     end
 
   end

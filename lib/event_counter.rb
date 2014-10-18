@@ -6,6 +6,8 @@ class EventCounter < ActiveRecord::Base
 
   belongs_to :countable, polymorphic: true
 
+  scope :within, ->(range) { range && where(created_at: range) }
+
   def increase_by(val)
     self.class.where(id: id).update_all(['value = value + ?', val])
     increment(:value, val)
@@ -86,13 +88,13 @@ class EventCounter < ActiveRecord::Base
   end
 
   def self.normalize_on_time(on_time)
-    on_time ||= Time.now
+    on_time ||= Time.zone.now
     on_time =
       case current_interval
       when Symbol
-        on_time.send(:"beginning_of_#{current_interval}")
+        on_time.in_time_zone.send(:"beginning_of_#{current_interval}")
       else
-        on_time.floor(current_interval)
+        on_time.in_time_zone.floor(current_interval)
       end
     on_time
   end
@@ -123,16 +125,26 @@ class EventCounter < ActiveRecord::Base
 end
 
 require 'event_counter/active_record_extension'
-
 ActiveRecord::Base.send(:include, EventCounter::ActiveRecordExtension)
 
+if ActiveSupport::VERSION::MAJOR > 3
+  require 'active_support/core_ext/time'
+else
+  require 'active_support/time'
+end
+
 # :nodoc:
-class Time
+class ActiveSupport::TimeWithZone
+  def round_off(seconds = 60)
+    Time.zone.at((to_f / seconds).round * seconds)
+  end
+
   def floor(seconds = 60)
-    Time.at((to_f / seconds).floor * seconds)
+    Time.zone.at((to_f / seconds).floor * seconds)
   end
 end
 
+# :nodoc:
 class String
 
   unless method_defined?(:squish!)
