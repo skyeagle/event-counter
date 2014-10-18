@@ -1,0 +1,2 @@
+Fabricator(:ball) do
+end

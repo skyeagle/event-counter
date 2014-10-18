@@ -1,0 +1,346 @@
+require 'spec_helper'
+
+describe EventCounter do
+  let(:ball) { Fabricate(:ball) }
+
+  it 'has version' do
+    expect(EventCounter::VERSION).to match(/\d+\.\d+\.\d+/)
+  end
+
+  it '#make' do
+    expect {
+      counter = ball.rotations.make(3)
+      expect(counter).to be_a(EventCounter)
+
+      expected = {
+        countable_id: ball.id,
+        countable_type: ball.class.name,
+        created_at: Time.now.floor(300),
+        name: 'rotations',
+        value: 3
+      }.with_indifferent_access
+
+      counter.attributes.except('id').keys.each do |attr|
+        expect(counter[attr]).to be_eql(expected[attr])
+      end
+    }.to change { EventCounter.count }.by(1)
+  end
+
+  it '#make on time' do
+    on_time = Time.mktime(2012, 12, 12, 12, 12)
+    expect {
+      counter = ball.rotations.make(
+        3, on_time: on_time)
+      expect(counter).to be_a(EventCounter)
+
+      expected = {
+        countable_id: ball.id,
+        countable_type: ball.class.name,
+        created_at: on_time.change(min: 10),
+        name: 'rotations',
+        value: 3
+      }.with_indifferent_access
+
+      counter.attributes.except('id').keys.each do |attr|
+        expect(counter[attr]).to be_eql(expected[attr])
+      end
+    }.to change { EventCounter.count }.by(1)
+  end
+
+  it '#make on time with interval as symbol' do
+    on_time = Time.mktime(2012, 12, 12, 12, 12)
+    [:week, :month, :year].each do |interval|
+      expect {
+        counter = ball.send(:"rotations_by_#{interval}").make(
+          3, on_time: on_time)
+        expect(counter).to be_a(EventCounter)
+
+        expected = {
+          countable_id: ball.id,
+          countable_type: ball.class.name,
+          created_at: on_time.send(:"beginning_of_#{interval}"),
+          name: "rotations_by_#{interval}",
+          value: 3
+        }.with_indifferent_access
+
+        counter.attributes.except('id').keys.each do |attr|
+          expect(counter[attr]).to be_eql(expected[attr])
+        end
+      }.to change { EventCounter.count }.by(1)
+    end
+  end
+
+end
+
+describe Ball do
+  let(:ball) { Fabricate(:ball) }
+
+  it 'creates a new counter while incrementing' do
+    expect {
+      expect(ball.up!(:rotations)).to be_a(EventCounter)
+    }.to change { EventCounter.count }.by(1)
+
+    on_time = Time.mktime(2011, 11, 11, 11, 11)
+    expect {
+      expect(ball.up!(:rotations, on_time: on_time))
+        .to be_a(EventCounter)
+    }.to change { EventCounter.count }.by(1)
+
+    on_time = Time.mktime(2012, 12, 12, 12, 12)
+    expect {
+      expect(ball.up!(:rotations, 5, on_time: on_time))
+        .to be_a(EventCounter)
+    }.to change { EventCounter.count }.by(1)
+  end
+
+  it 'creates a new counter while decrementing' do
+    expect {
+      expect(ball.down!(:rotations)).to be_a(EventCounter)
+    }.to change { EventCounter.count }.by(1)
+
+    on_time = Time.mktime(2011, 11, 11, 11, 11)
+    expect {
+      expect(ball.down!(:rotations, on_time: on_time))
+        .to be_a(EventCounter)
+    }.to change { EventCounter.count }.by(1)
+
+    on_time = Time.mktime(2012, 12, 12, 12, 12)
+    expect {
+      expect(ball.down!(:rotations, 5, on_time: on_time))
+        .to be_a(EventCounter)
+    }.to change { EventCounter.count }.by(1)
+  end
+
+  it 'increments existent counter with default value' do
+    counter = ball.rotations.make
+
+    expect {
+      expect {
+        expect(ball.up!(:rotations)).to be_a(EventCounter)
+      }.to change { counter.reload.value }.from(1).to(2)
+    }.to_not change { EventCounter.count }
+  end
+
+  it 'decrements existent counter with default value' do
+    counter = ball.rotations.make(- 1)
+
+    expect {
+      expect {
+        expect(ball.down!(:rotations)).to be_a(EventCounter)
+      }.to change { counter.reload.value }.from(-1).to(-2)
+    }.to_not change { EventCounter.count }
+  end
+
+  it 'increments existent counter by a specified value' do
+    counter = ball.rotations.make
+
+    expect {
+      expect {
+        expect(ball.up!(:rotations, 3)).to be_a(EventCounter)
+      }.to change { counter.reload.value }.from(1).to(4)
+    }.to_not change { EventCounter.count }
+  end
+
+  it 'decrements existent counter by a specified value' do
+    counter = ball.rotations.make 3
+
+    expect {
+      expect {
+        expect(ball.down!(:rotations, 5)).to be_a(EventCounter)
+      }.to change { counter.reload.value }.from(3).to(-2)
+    }.to_not change { EventCounter.count }
+  end
+
+  it 'increments existent counter on time with default value' do
+    on_time = Time.mktime(2012, 12, 12, 12, 12)
+    counter = ball.rotations.make on_time: on_time
+
+    expect {
+      expect {
+        expect(ball.up!(:rotations, on_time: on_time.change(min: 14)))
+      }.to change { counter.reload.value }.from(1).to(2)
+    }.to_not change { EventCounter.count }
+  end
+
+  it 'decrements existent counter on time with default value' do
+    on_time = Time.mktime(2012, 12, 12, 12, 12)
+    counter = ball.rotations.make on_time: on_time
+
+    expect {
+      expect {
+        expect(ball.down!(:rotations, on_time: on_time.change(min: 14)))
+      }.to change { counter.reload.value }.from(1).to(0)
+    }.to_not change { EventCounter.count }
+  end
+
+  it 'increments existent counter on time with specified value' do
+    on_time = Time.mktime(2012, 12, 12, 12, 12)
+    counter = ball.rotations.make 2, on_time: on_time
+
+    expect {
+      expect {
+        expect(ball.up!(:rotations, 3, on_time: on_time.change(min: 14)))
+      }.to change { counter.reload.value }.from(2).to(5)
+    }.to_not change { EventCounter.count }
+  end
+
+  it 'decrements existent counter on time with specified value' do
+    on_time = Time.mktime(2012, 12, 12, 12, 12)
+    counter = ball.rotations.make 2, on_time: on_time
+
+    expect {
+      expect {
+        expect(ball.down!(:rotations, 3, on_time: on_time.change(min: 14)))
+      }.to change { counter.reload.value }.from(2).to(-1)
+    }.to_not change { EventCounter.count }
+  end
+
+  it 'forces existent counter with new value' do
+    counter = ball.rotations.make
+
+    expect {
+      expect {
+        expect(ball.rotations.make(5, force: true))
+          .to be_a(EventCounter)
+      }.to change { counter.reload.value }.from(1).to(5)
+    }.to_not change { EventCounter.count }
+  end
+
+  it 'forces existent counter on time with new value' do
+    on_time = Time.mktime(2012, 12, 12, 12, 12)
+    counter = ball.rotations.make 2, on_time: on_time
+
+    expect {
+      expect {
+        expect(ball.rotations.make(5, force: true, on_time: on_time))
+          .to be_a(EventCounter)
+      }.to change { counter.reload.value }.from(2).to(5)
+    }.to_not change { EventCounter.count }
+  end
+
+  it 'raises error on wrong direction foc counter' do
+    expect { ball.send(:rotate_counter, *[:rotations, vector: :wrong_direction]) }
+      .to raise_error(EventCounter::CounterError, /wrong direction/i)
+  end
+
+  it 'raises error on unable to find counter' do
+    expect { ball.up!(:unknown) }
+      .to raise_error(EventCounter::CounterError, /unable to find/i)
+  end
+
+  def setup_counters(countable_count = 1)
+    [1, 1, 2, 3, 5, 8, 13, 21, 34].each do |n|
+      on_time = Time.mktime(2012, 12, 12, 12, n)
+      if countable_count == 1
+        ball.rotations.make n, on_time: on_time
+      else
+        countable_count.times do
+          Fabricate(:ball).rotations.make n, on_time: on_time
+        end
+      end
+    end
+  end
+
+  context '#data_for' do
+
+    before { setup_counters }
+
+    it 'with default interval' do
+      data = [
+        # [ minute, value ]
+        [ 0, 7   ],
+        [ 5, 13  ],
+        [ 10, 13 ],
+        [ 15, 0  ],
+        [ 20, 21 ],
+        [ 25, 0  ],
+        [ 30, 34 ]
+      ]
+      expect(ball.data_for(:rotations)).to eql_data(data)
+    end
+
+    it 'with a less interval' do
+      expect { ball.data_for(:rotations, interval: 3.minutes) }
+        .to raise_error(EventCounter::CounterError, /could not be less/i)
+
+      [:week, :month, :year].each do |interval|
+        expect { ball.data_for(:rotations_by_two_year, interval: interval) }
+          .to raise_error(EventCounter::CounterError, /could not be less/i)
+      end
+    end
+
+    it 'with a interval which is not a multiple of original interval' do
+      expect { ball.data_for(:rotations, interval: 7.minutes) }
+        .to raise_error(EventCounter::CounterError, /multiple of/i)
+    end
+
+    it 'with a greater interval' do
+      data = [ [ 0, 33 ], [ 20, 55 ] ]
+
+      expect(ball.data_for(:rotations, interval: 20.minutes))
+        .to eql_data(data)
+    end
+
+    it 'with a greater interval and a time range' do
+      range_start = Time.mktime 2012, 12, 12, 12, 15
+      range_end =   Time.mktime 2012, 12, 12, 12, 45
+      range = range_start..range_end
+
+      data = [ [ 10, 13 ], [ 20, 21 ], [ 30, 34 ], [ 40, 0] ]
+
+       expect(ball.data_for(:rotations, interval: 10.minutes, range: range))
+        .to eql_data(data)
+    end
+
+    it 'with a greater interval as symbol' do
+      beginning_of_week = Time.mktime(2012, 12, 12).beginning_of_week
+
+      data = [ [ beginning_of_week, 88 ] ]
+
+       expect(ball.data_for(:rotations, interval: :week))
+        .to eql(data)
+    end
+
+  end
+
+  context '.data_for' do
+
+    before { setup_counters(3) }
+
+    it 'with a default interval' do
+      data = [
+        # [ minute, value ]
+        [ 0, 21   ],
+        [ 5, 39  ],
+        [ 10, 39 ],
+        [ 15, 0  ],
+        [ 20, 63 ],
+        [ 25, 0  ],
+        [ 30, 102 ]
+      ]
+      expect(subject.data_for(:rotations)).to eql_data(data)
+    end
+
+    it 'with a greater interval as symbol and a simple data' do
+      beginning_of_month = Time.mktime(2012, 12, 12).beginning_of_month
+      data = [ [ beginning_of_month, 264 ] ]
+      expect(subject.data_for(:rotations, interval: :month)).to eql(data)
+    end
+
+    it 'with a greater interval as symbol and a large data' do
+      EventCounter.all.each do |counter|
+        11.times do |x|
+          created_at = counter.created_at - (x + 1).months
+          EventCounter.create!(counter.attributes.except('id')) do |c|
+            c.created_at = created_at
+          end
+        end
+      end
+
+      data = (1..12).map { |x| [ Time.mktime(2012, x), 264 ] }
+
+      expect(subject.data_for(:rotations, interval: :month)).to eql(data)
+    end
+
+  end
+end
