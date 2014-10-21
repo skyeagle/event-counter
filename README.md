@@ -113,6 +113,7 @@ Article.data_for(:views, interval: :day, range: range)
 ## Limitations
 
   - It works *ONLY* with *PostgreSQL* at the moment.
+  - Ruby 2+
   - ActiveRecord 3+
   - ActiveSupport 3+
   - It's polymorphic association.
