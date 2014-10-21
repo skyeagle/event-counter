@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/skyeagle/event-counter.svg)](https://travis-ci.org/skyeagle/event-counter)
+
 # EventCounter
 
 EventCounter is a database based event counter with throttling per time intervals.
@@ -142,9 +144,9 @@ class CreateEventCounters < ActiveRecord::Migration
       t.datetime :created_at
     end
 
-    add_index :event_counters, :countable_type
+    add_index :event_counters, :created_at
     add_index :event_counters,
-      [:countable_type, :name, :countable_id], name: 'complex_index'
+      [:countable_type, :name, :countable_id], name: 'index_complex'
 
   end
 
