@@ -27,7 +27,7 @@ class EventCounter < ActiveRecord::Base
   end
 
   def self.make(val = 1, on_time: nil, force: false)
-    on_time = normalize_on_time(on_time)
+    on_time = normalize_on_time!(on_time)
 
     attrs = { created_at: on_time }
 
@@ -52,7 +52,7 @@ class EventCounter < ActiveRecord::Base
 
     val ||= 1
 
-    on_time = normalize_on_time(on_time)
+    on_time = normalize_on_time!(on_time)
 
     counter = where(created_at: on_time).first
 
@@ -87,8 +87,11 @@ class EventCounter < ActiveRecord::Base
     fail CounterError, args
   end
 
-  def self.normalize_on_time(on_time)
+  def self.normalize_on_time!(on_time)
     on_time ||= Time.zone.now
+
+    counter_error!(:time_zone) unless on_time.is_a?(ActiveSupport::TimeWithZone)
+
     on_time =
       case current_interval
       when Symbol
@@ -108,7 +111,9 @@ class EventCounter < ActiveRecord::Base
       less: 'Specified interval (%{interval}) could not be less then ' \
             'a defined (%{default_interval}) in a countable model (%{model}).',
       multiple: 'Specified interval (%{interval}) should be a multiple of ' \
-                'a defined (%{default_interval}) in a countable model (%{model}).'
+                'a defined (%{default_interval}) in a countable model (%{model}).',
+      time_zone: 'The :on_time option should be defined with time zone, e.x.: ' \
+                 'Time.zone.local(2014, 1, 1, 1, 1)'
     }
 
     attr_accessor :extra

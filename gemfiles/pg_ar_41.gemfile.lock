@@ -1,7 +1,7 @@
 PATH
   remote: ../
   specs:
-    event-counter (0.1.0)
+    event-counter (0.1.1)
       activerecord (>= 3)
       activesupport (>= 3)
       pg (~> 0)

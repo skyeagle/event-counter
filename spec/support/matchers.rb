@@ -14,7 +14,7 @@ end
 module RSpec
   module Matchers
     def eql_data(items)
-      items.map! { |a, b| [ Time.mktime(2014, 1, 1, 1, a).in_time_zone, b ] }
+      items.map! { |a, b| [ Time.zone.local(2014, 1, 1, 1, a), b ] }
       contain_exactly(*items)
     end
   end

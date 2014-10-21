@@ -7,8 +7,8 @@ describe Ball, slow: true do
     DatabaseCleaner.clean_with(:truncation)
   end
 
-  let(:range_start) { (Time.mktime 2013, 7).in_time_zone.beginning_of_month }
-  let(:range_end)   { (Time.mktime 2014, 6).in_time_zone.end_of_month       }
+  let(:range_start) { Time.zone.local(2013, 7).beginning_of_month }
+  let(:range_end)   { Time.zone.local(2014, 6).end_of_month       }
   let(:range)       { range_start..range_end }
 
   def disable_logging(&blk)
@@ -27,8 +27,8 @@ describe Ball, slow: true do
 
     ball = Ball.create!
 
-    (Time.mktime(2012).to_i..Time.mktime(2015).to_i).step(step) do |i|
-      on_time = Time.at(i)
+    (Time.zone.local(2012).to_i..Time.zone.local(2015).to_i).step(step) do |i|
+      on_time = Time.zone.at(i)
       ball.rotations.make on_time: on_time
     end
 

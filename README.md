@@ -71,8 +71,8 @@ article.data_for(:views, interval: 10.minutes)
 # ]
 
 # with range
-range_start = Time.mktime(2014, 10, 16, 23, 0).in_time_zone
-range_end   = Time.mktime(2014, 10, 16, 23, 10).in_time_zone
+range_start = Time.zone.local(2014, 10, 16, 23, 0)
+range_end   = Time.zone.local(2014, 10, 16, 23, 10)
 range = range_start..range_end
 article.data_for(:views, interval: 10.minutes, range: range)
 #=> [
@@ -81,8 +81,8 @@ article.data_for(:views, interval: 10.minutes, range: range)
 # ]
 
 # for different time zone (although we have no data for that time)
-range_start = Time.mktime(2014, 10, 16, 23, 0).in_time_zone('UTC')
-range_end   = Time.mktime(2014, 10, 16, 23, 10).in_time_zone('UTC')
+range_start = Time.zone.local(2014, 10, 16, 23, 0).in_time_zone('UTC')
+range_end   = Time.zone.local(2014, 10, 16, 23, 10).in_time_zone('UTC')
 range = range_start..range_end
 article.data_for(:views, interval: 10.minutes, range: range, tz: 'UTC')
 #=> [
@@ -100,8 +100,8 @@ article.data_for(:views, interval: :day, raw: true)
 # looks as `Time.zone.parse(i['created_at']), i['value'].to_i ]`
 
 # class wide
-range_start = Time.mktime(2014, 10, 15).in_time_zone
-range_end   = Time.mktime(2014, 10, 16).in_time_zone
+range_start = Time.zone.local(2014, 10, 15)
+range_end   = Time.zone.local(2014, 10, 16)
 range = range_start..range_end
 Article.data_for(:views, interval: :day, range: range)
 # => [

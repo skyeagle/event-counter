@@ -27,7 +27,7 @@ describe EventCounter do
   end
 
   it '#make on time' do
-    on_time = Time.mktime(2014, 1, 1, 1, 14).in_time_zone
+    on_time = Time.zone.local(2014, 1, 1, 1, 14)
     expect {
       counter = ball.rotations.make(
         3, on_time: on_time)
@@ -48,7 +48,7 @@ describe EventCounter do
   end
 
   it '#make on time with interval as symbol' do
-    on_time = Time.mktime(2014, 1, 1, 1, 1).in_time_zone
+    on_time = Time.zone.local(2014, 1, 1, 1, 1)
     [:week, :month, :year].each do |interval|
       expect {
         counter = ball.send(:"rotations_by_#{interval}").make(
@@ -80,13 +80,13 @@ describe Ball do
       expect(ball.up!(:rotations)).to be_a(EventCounter)
     }.to change { EventCounter.count }.by(1)
 
-    on_time = Time.mktime(2011, 11, 11, 11, 11)
+    on_time = Time.zone.local(2011, 11, 11, 11, 11)
     expect {
       expect(ball.up!(:rotations, on_time: on_time))
         .to be_a(EventCounter)
     }.to change { EventCounter.count }.by(1)
 
-    on_time = Time.mktime(2012, 12, 12, 12, 12)
+    on_time = Time.zone.local(2012, 12, 12, 12, 12)
     expect {
       expect(ball.up!(:rotations, 5, on_time: on_time))
         .to be_a(EventCounter)
@@ -98,13 +98,13 @@ describe Ball do
       expect(ball.down!(:rotations)).to be_a(EventCounter)
     }.to change { EventCounter.count }.by(1)
 
-    on_time = Time.mktime(2011, 11, 11, 11, 11)
+    on_time = Time.zone.local(2011, 11, 11, 11, 11)
     expect {
       expect(ball.down!(:rotations, on_time: on_time))
         .to be_a(EventCounter)
     }.to change { EventCounter.count }.by(1)
 
-    on_time = Time.mktime(2012, 12, 12, 12, 12)
+    on_time = Time.zone.local(2012, 12, 12, 12, 12)
     expect {
       expect(ball.down!(:rotations, 5, on_time: on_time))
         .to be_a(EventCounter)
@@ -152,7 +152,7 @@ describe Ball do
   end
 
   it 'increments existent counter on time with default value' do
-    on_time = Time.mktime(2012, 12, 12, 12, 12)
+    on_time = Time.zone.local(2012, 12, 12, 12, 12)
     counter = ball.rotations.make on_time: on_time
 
     expect {
@@ -163,7 +163,7 @@ describe Ball do
   end
 
   it 'decrements existent counter on time with default value' do
-    on_time = Time.mktime(2012, 12, 12, 12, 12)
+    on_time = Time.zone.local(2012, 12, 12, 12, 12)
     counter = ball.rotations.make on_time: on_time
 
     expect {
@@ -174,7 +174,7 @@ describe Ball do
   end
 
   it 'increments existent counter on time with specified value' do
-    on_time = Time.mktime(2012, 12, 12, 12, 12)
+    on_time = Time.zone.local(2012, 12, 12, 12, 12)
     counter = ball.rotations.make 2, on_time: on_time
 
     expect {
@@ -185,7 +185,7 @@ describe Ball do
   end
 
   it 'decrements existent counter on time with specified value' do
-    on_time = Time.mktime(2012, 12, 12, 12, 12)
+    on_time = Time.zone.local(2012, 12, 12, 12, 12)
     counter = ball.rotations.make 2, on_time: on_time
 
     expect {
@@ -207,7 +207,7 @@ describe Ball do
   end
 
   it 'forces existent counter on time with new value' do
-    on_time = Time.mktime(2012, 12, 12, 12, 12)
+    on_time = Time.zone.local(2012, 12, 12, 12, 12)
     counter = ball.rotations.make 2, on_time: on_time
 
     expect {
@@ -230,7 +230,7 @@ describe Ball do
 
   def setup_counters(countable_count = 1)
     [1, 1, 2, 3, 5, 8, 13, 21, 34].each do |n|
-      on_time = Time.mktime(2014, 1, 1, 1, n).in_time_zone
+      on_time = Time.zone.local(2014, 1, 1, 1, n)
       if countable_count == 1
         ball.rotations.make n, on_time: on_time
       else
@@ -282,8 +282,8 @@ describe Ball do
     end
 
     it 'with a greater interval and a time range' do
-      range_start = Time.mktime 2014, 1, 1, 1, 15
-      range_end =   Time.mktime 2014, 1, 1, 1, 45
+      range_start = Time.zone.local 2014, 1, 1, 1, 15
+      range_end =   Time.zone.local 2014, 1, 1, 1, 45
       range = range_start.in_time_zone..range_end.in_time_zone
 
       data = [ [ 10, 13 ], [ 20, 21 ], [ 30, 34 ], [ 40, 0] ]
@@ -293,7 +293,7 @@ describe Ball do
     end
 
     it 'with a greater interval as symbol' do
-      beginning_of_week = Time.mktime(2014).in_time_zone.beginning_of_week
+      beginning_of_week = Time.zone.local(2014).beginning_of_week
 
       data = [ [ beginning_of_week, 88 ] ]
 
@@ -333,8 +333,8 @@ describe Ball do
     it 'with a greater interval within range' do
       data = [ [ 10, 39 ], [ 20, 63 ] ]
 
-      range_start = Time.mktime(2014, 1, 1, 1, 15).in_time_zone
-      range_end = Time.mktime(2014, 1, 1, 1, 29).in_time_zone
+      range_start = Time.zone.local(2014, 1, 1, 1, 15)
+      range_end = Time.zone.local(2014, 1, 1, 1, 29)
       range = range_start..range_end
 
       expect(subject.data_for(:rotations, interval: 10.minutes, range: range))
@@ -342,7 +342,7 @@ describe Ball do
     end
 
     it 'with a greater interval as symbol and a simple data' do
-      bmonth = Time.mktime(2014, 1, 1).in_time_zone.beginning_of_month
+      bmonth = Time.zone.local(2014, 1, 1).beginning_of_month
       data = [ [ bmonth, 264 ] ]
 
       expect(subject.data_for(:rotations, interval: :month))
@@ -350,7 +350,7 @@ describe Ball do
     end
 
     it 'with a greater interval as symbol and a simple data within range' do
-      bmonth = Time.mktime(2014, 1, 1).in_time_zone.beginning_of_month
+      bmonth = Time.zone.local(2014, 1, 1).beginning_of_month
       data = [ [ bmonth, 264 ] ]
 
       range_start = bmonth
@@ -372,8 +372,7 @@ describe Ball do
         end
       end
 
-      data = (6..12).map { |x| [ Time.mktime(2013, x).in_time_zone, 264 ] }
-
+      data = (6..12).map { |x| [ Time.zone.local(2013, x), 264 ] }
       range_start = data[0][0].beginning_of_month
       range_end = data[-1][0].end_of_month
       range = range_start..range_end
