@@ -9,7 +9,7 @@ gemfile:
   - gemfiles/pg_ar_32.gemfile
   - gemfiles/pg_ar_40.gemfile
 
-script: RUN_ALL=true bundle exec rspec spec
+script: bundle exec rspec spec
 
 services:
   - postgresql
