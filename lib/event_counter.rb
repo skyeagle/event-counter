@@ -31,20 +31,20 @@ class EventCounter < ActiveRecord::Base
 
     attrs = { created_at: on_time }
 
-    if force && (found = scoped_relatiion.where(attrs).first)
+    if force && (found = scoped_relation.where(attrs).first)
       found.reset_value(val)
     else
       attrs.merge!(value: val)
-      scoped_relatiion.create!(attrs)
+      scoped_relation.create!(attrs)
     end
   end
 
   def self.current_interval
-    scoped_relatiion.proxy_association.owner.event_counters[counter_name]
+    scoped_relation.proxy_association.owner.event_counters[counter_name]
   end
 
   def self.counter_name
-    scoped_relatiion.proxy_association.reflection.name
+    scoped_relation.proxy_association.reflection.name
   end
 
   def self.change(val = 1, vector: :up, on_time: nil, force: nil)
@@ -71,7 +71,7 @@ class EventCounter < ActiveRecord::Base
     end
   end
 
-  def self.scoped_relatiion
+  def self.scoped_relation
     ActiveRecord::VERSION::MAJOR > 3 ? where(nil) : scoped
   end
 
