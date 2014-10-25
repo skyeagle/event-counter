@@ -127,7 +127,7 @@ Article.data_for(:views, interval: :day, range: range)
 Add gem to Gemfile
 
 ```ruby
-gem 'event_counter'
+gem 'event-counter'
 ```
 
 Create migration `rails g migration create_event_counters` with the
