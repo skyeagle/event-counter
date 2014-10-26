@@ -36,7 +36,6 @@ describe Ball, slow: true do
 
     skip_count = 0
 
-
     export_sql = "COPY event_counters TO STDOUT (DELIMITER '|')"
     connection.copy_data(export_sql) do
       File.open(path, 'w') do |f|

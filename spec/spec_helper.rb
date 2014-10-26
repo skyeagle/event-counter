@@ -19,9 +19,6 @@ YAML.load(File.open(conf).read).values.each do |config|
   ActiveRecord::Base.establish_connection config
 end
 
-ActiveRecord::Base.default_timezone = :utc
-Time.zone = 'Moscow'
-
 ActiveRecord::Schema.define do
   self.verbose = false
 
@@ -35,7 +32,7 @@ ActiveRecord::Schema.define do
     t.datetime :created_at
   end
 
-  add_index :event_counters, :created_at#, name: 'idx_created_at_desc'
+  add_index :event_counters, :created_at
   add_index :event_counters, [:countable_type, :name, :countable_id],
     name: 'idx_composite'
 end
@@ -56,13 +53,26 @@ end
 RSpec.configure do |config|
 
   config.before(:suite) do
-    DatabaseCleaner.strategy = :transaction
-    DatabaseCleaner.clean_with(:truncation)
+    unless ENV['DEBUG']
+      DatabaseCleaner.strategy = :transaction
+      DatabaseCleaner.clean_with(:truncation)
+    end
+  end
+
+  config.before(:each) do
+    ActiveRecord::Base.default_timezone = :utc
+    Time.zone = 'Moscow'
   end
 
   config.around(:each) do |example|
-    DatabaseCleaner.cleaning { example.run }
+    if ENV['DEBUG']
+      example.run
+    else
+      DatabaseCleaner.cleaning { example.run }
+    end
   end
+
+  config.alias_it_should_behave_like_to :it_has, 'has:'
 
   config.filter_run_excluding slow: true unless ENV['RUN_ALL']
 end
