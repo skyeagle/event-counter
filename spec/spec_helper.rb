@@ -57,10 +57,8 @@ RSpec.configure do |config|
       DatabaseCleaner.strategy = :transaction
       DatabaseCleaner.clean_with(:truncation)
     end
-  end
-
-  config.before(:each) do
     ActiveRecord::Base.default_timezone = :utc
+    ActiveRecord::Base.connection.reconnect!
     Time.zone = 'Moscow'
   end
 
