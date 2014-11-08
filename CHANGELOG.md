@@ -1,5 +1,9 @@
 # EventCounter Changelog
 
+0.3.0 (2014-11-08)
+
+* counter definition method name changed
+
 0.2.0 (2014-11-05)
 
 * Improved timezones support
