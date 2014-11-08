@@ -10,7 +10,7 @@ class EventCounter < ActiveRecord::Base
 
     # :nodoc:
     module ClassMethods
-      def has_counter(name, interval)
+      def has_counter(name, interval: :day)
         event_counters[name] = interval
 
         clause = { name: name.to_s }

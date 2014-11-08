@@ -10,7 +10,7 @@ Let's define counters in model
 
 ```ruby
 class Article < ActiveRecord::Base
-  has_counter :views, interval: 5.minutes
+  has_counter :views, interval: 5.minutes # default interval is :day
 
   # :year, :month, :week and :day symbols are supported
   has_counter :views_by_week, interval: :week

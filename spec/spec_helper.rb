@@ -39,11 +39,11 @@ end
 
 # :nodoc:
 class Ball < ActiveRecord::Base
-  has_counter :rotations, 5.minutes
-  has_counter :rotations_by_week, :week
-  has_counter :rotations_by_month, :month
-  has_counter :rotations_by_year, :year
-  has_counter :rotations_by_two_year, 2.years
+  has_counter :rotations, interval: 5.minutes
+  has_counter :rotations_by_week, interval: :week
+  has_counter :rotations_by_month, interval: :month
+  has_counter :rotations_by_year, interval: :year
+  has_counter :rotations_by_two_year, interval: 2.years
 end
 
 Dir[File.expand_path('../support/*.rb', __FILE__)].each do |file|

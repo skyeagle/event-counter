@@ -1,5 +1,9 @@
 # EventCounter Changelog
 
+0.3.1 (2014-11-08)
+
+* Added default interval to counter definition
+
 0.3.0 (2014-11-08)
 
 * counter definition method name changed
