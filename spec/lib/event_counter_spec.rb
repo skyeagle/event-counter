@@ -67,7 +67,11 @@ describe EventCounter do
           expect(counter[attr]).to be_eql(expected[attr])
         end
       }.to change { EventCounter.count }.by(1)
+      expect(
+        ball.data_for(:"rotations_by_#{interval}").last.last
+      ).to eql(3)
     end
+
   end
 
 end

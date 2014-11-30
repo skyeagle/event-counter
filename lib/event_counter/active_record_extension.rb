@@ -212,7 +212,7 @@ class EventCounter < ActiveRecord::Base
       end
 
       def normalize_interval!(name, interval)
-        default_interval = default_interval_for(name)
+        default_interval = interval_as_integer(default_interval_for(name))
 
         h = {
           default_interval: default_interval,

@@ -1,5 +1,9 @@
 # EventCounter Changelog
 
+0.3.2 (2014-11-30)
+
+* Fixed bug when interval specified as symbol
+
 0.3.1 (2014-11-08)
 
 * Added default interval to counter definition
